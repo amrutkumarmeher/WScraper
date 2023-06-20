@@ -46,10 +46,13 @@ htmlcov/
 nosetests.xml
 coverage.xml
 *.cover
+rough.*
+rough/
 *.py,cover
 .hypothesis/
 .pytest_cache/
 cover/
+index.html
 
 # Translations
 *.mo
