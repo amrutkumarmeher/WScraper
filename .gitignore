@@ -53,6 +53,8 @@ rough/
 .pytest_cache/
 cover/
 index.html
+*.mp4
+*.mp3
 
 # Translations
 *.mo

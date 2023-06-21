@@ -5,12 +5,12 @@ import sys
 import pathlib
 
 
-def getwebside(link):
+def getwebsite(link):
     return bs4.BeautifulSoup(requests.get(link).text, features="html.parser")
 
 
 def scrapeImgsLiks(link):
-    website = getwebside(link)
+    website = getwebsite(link)
     ImgLi = list(website.find_all("img"))
     OnlyLinks = []
     for linkI in ImgLi:
@@ -27,44 +27,36 @@ def scrapeImgsLiks(link):
 
 
 def scrapeVidLinks(link):
-    webside = getwebside(link)
-    VidLi = list(webside.find_all("video"))
+    website = getwebsite(link)
+    VidLi = list(website.find_all("video"))
     OnlyLinks = []
     for linkI in VidLi:
         linkI = str(linkI)
-        if "src=" in linkI:
-            linkI = str(linkI)
-            chunks = linkI.split(" ")  # split between diff attributes.
-            for chunk in chunks:
-                if chunk.startswith('src="'):     # check if it's the src link.
-                    # removing src=".
-                    chunk = chunk.replace('src="', "")
-                    # removing back quote.
-                    chunk = chunk.replace('"', "")
-                    chunk = chunk[:chunk.index(">")] # if its the last attribute of the tag
-                    if "https:" not in chunk:
-                        chunk = "https:".__add__(chunk)
-                    OnlyLinks.append(chunk)
-                    break
-        else:
-            tagsoup = bs4.BeautifulSoup(linkI, features="html.parser").find_all("source")
-
-            for spoon in tagsoup:
-                chunks = str(spoon).split(" ")
-                for chunk in chunks:
-                    # check if it's the src link.
-                    if chunk.startswith('src="'):
-                        # removing src=".
-                        chunk = chunk.replace('src="', "")
-                        # removing back quote.
-                        chunk = chunk.replace('"', "")
-                        chunk = chunk[:chunk.index(">")] # if its the last attribute of the tag
-                        if "https:" not in chunk:
-                            chunk = "https:".__add__(chunk)
-                        OnlyLinks.append(chunk)
-                        break
+        chunks = linkI.split(" ")  # split between diff attributes.
+        for chunk in chunks:
+            if chunk.startswith('src="'):     # check if it's the src link.
+                # removing src=".
+                chunk = chunk.replace('src="', "")
+                # removing back quote.
+                chunk = chunk.replace('"', "")
+                if ">" in chunk:
+                    # if its the last attribute of the tag
+                    chunk = chunk[:chunk.index(">")]
+                if "https:" not in chunk or "http:" not in chunk:
+                    chunk = "".join(["http:", getdomain(link), "/", chunk])
+                    if "//" not in chunk:
+                        chunk = chunk.replace("http:", "http://")
+                        chunk = chunk.replace("https:", "https://")
+                OnlyLinks.append(chunk)
+                break
 
     return OnlyLinks
+
+
+def getdomain(link: str):
+    linkli = link.split("//")
+    linkli = linkli[1].split("/")
+    return linkli[0]
 
 
 def delStr(str1: str, str2: str):
@@ -93,25 +85,26 @@ def delStr(str1: str, str2: str):
 
 
 def SetDirs(Path: str):
-  if (Path != ".") or (Path == ""):
-    initP = pathlib.Path().absolute().as_uri().replace("file:///", "")
-    Path = pathlib.Path(Path).absolute().as_uri().replace("file:///", "")
-    Path = delStr(Path, initP)
-    if "//" in Path:
-        DirLi = Path.split("//")
-    elif "\\" in Path:
-        DirLi = Path.split("\\")
+    if (Path != ".") or (Path == ""):
+        initP = pathlib.Path().absolute().as_uri().replace("file:///", "")
+        Path = pathlib.Path(Path).absolute().as_uri().replace("file:///", "")
+        Path = delStr(Path, initP)
+        if "//" in Path:
+            DirLi = Path.split("//")
+        elif "\\" in Path:
+            DirLi = Path.split("\\")
+        else:
+            DirLi = [Path[1:]]
+        for i in DirLi:
+            try:
+                os.mkdir(i)
+                os.chdir(i)
+            except:
+                os.chdir(i)
+        os.chdir(initP)
     else:
-        DirLi = [Path[1:]]
-    for i in DirLi:
-        try:
-            os.mkdir(i)
-            os.chdir(i)
-        except:
-            os.chdir(i)
-    os.chdir(initP)
-  else:
-      pass
+        pass
+
 
 def saveVids(ScrabedLList: list, targetLoc=".", format: str = "mp4"):
     con = 0
@@ -125,9 +118,10 @@ def saveVids(ScrabedLList: list, targetLoc=".", format: str = "mp4"):
             continue
         print(
             f"Scraping Successful! | Image Name: {con}.{format} | size: {sys.getsizeof(vid)} | from: {link}\n")
-        with open(f"{targetLoc}//{con}.{format}", "xb") as f:
+        with open(f"{targetLoc}//{con}.{format}", "wb") as f:
             f.write(vid)
             con += 1
+
 
 def saveImgs(ScrabedLList: list, targetLoc=".", format: str = "jpg"):
     con = 0
@@ -147,6 +141,5 @@ def saveImgs(ScrabedLList: list, targetLoc=".", format: str = "jpg"):
 
 
 if __name__ == "__main__":
-    i = scrapeVidLinks("https://samplelib.com/sample-mp4.html")
-    saveVids(i,format="mp4")
-    
+    i = scrapeVidLinks("http://127.0.0.1:5500/index.html")
+    saveVids(i, targetLoc="CapturedFiles", format="mp4")
