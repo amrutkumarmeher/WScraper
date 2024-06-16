@@ -15,14 +15,6 @@ homepage_logo = r"""
                   ╰━━╮┃┃╱╭╮╱┃┃╱╱┃╰╯┃┃╭━━╯╱┃┃╱╱┃╭╮╭┫╭╮╭╯
                   ┃╰━╯┃╰━╯┃╱┃┃╱╱╰╮╭╯┃╰━━╮╱┃┃╱╱┃┃┃╰┫┃┃╰╮
                   ╰━━━┻━━━╯╱╰╯╱╱╱╰╯╱╰━━━╯╱╰╯╱╱╰╯╰━┻╯╰━╯"""
-student_face = """
-▒▒▒▒▒▒▒▒▒▒▒▒
-▒▒▒▒▓▒▒▓▒▒▒▒
-▒▒▒▒▓▒▒▓▒▒▒▒
-▒▒▒▒▒▒▒▒▒▒▒▒
-▒▓▒▒▒▒▒▒▒▒▓▒
-▒▒▓▓▓▓▓▓▓▓▒▒
-▒▒▒▒▒▒▒▒▒▒▒▒"""
 server_status_good = False
 
 # print something in the screen
@@ -40,13 +32,14 @@ def scrPrint(screen,prompt,pos1=None,pos2=None,attri=None):
         else:
             screen.addstr(prompt)
         screen.refresh()
-  
-def checking_server_anima(screen,pos1,pos2,anima_attr):
-    """function for thread to show animation while server is responding"""
+
+# for multi-thread animation
+def anima(screen,msg,pos1,pos2,anima_attr):
+    """function for thread to show animation"""
     screen.clear()
     for i in range(1,4):
         scrPrint(screen,homepage_logo,0,0)
-        screen.addstr(pos1,pos2,f"Checking Server Condition {"."*i}",anima_attr)
+        screen.addstr(pos1,pos2,f"{msg}{"."*i}",anima_attr)
         if i >= 3:
             i=1
             screen.refresh()
@@ -55,6 +48,13 @@ def checking_server_anima(screen,pos1,pos2,anima_attr):
             screen.refresh()
         screen.clear()
         time.sleep(1)
+
+# remove signs like b'hi' which came from curses.getchar() function
+def remove_b(st:str):
+    st = str(st)
+    st = st.replace("'","")
+    st = st.replace("b","")
+    return st
 
 # check when it gets response from the server.
 def check_and_tell(web:str,return_list):
@@ -96,7 +96,7 @@ def server_status(main_web,return_list):
         return_list[1] = 1
 
 # initializing the functions
-def retreve(regino: str, sem: str, session: str):
+def retreve(regino: str, sem: str, session: str,return_list:list):
     """
     This function retreve the result in JSON format & also validate the details,
     inputs: regino=[F/L]<regiNo(12 digs), sem=[<digit 0<d<7], session=[w/s]<year>
@@ -108,15 +108,18 @@ def retreve(regino: str, sem: str, session: str):
         if no.isnumeric():
             pass  # let it continue
         else:
-            return "Error-Regino"
+            return_list[0] = "Error-Regino"
+            return_list[1] = 1
     else:
-        return "Error-Regino"
+        return_list[0] = "Error-Regino"
+        return_list[1] = 1
 
     # checking semester
-    if int(sem) <= 6 and int(sem) > 0:
+    if int(str(sem)) <= 6 and int(str(sem)) > 0:
         pass  # let it continue
     else:
-        return "Error-sem"
+        return_list[0] = "Error-sem"
+        return_list[1] = 1
 
     # checking session
     if session.startswith(("s", "w")):
@@ -129,14 +132,17 @@ def retreve(regino: str, sem: str, session: str):
         ):
             pass  # let it continue
         else:
-            return "Error-session"
+            return_list[0] = "Error-session"
+            return_list[1] = 1
     else:
-        return "Error-session"
+        return_list[0] = "Error-session"
+        return_list[1] = 1
     # api which can be used to fetch the result
     api_link = (
-        f"https://sctevtexams.in/student-result-{session}?sem=0{sem}&rollNo={regino}"
+        f"https://sctevtexams.in/student-result-{session}?sem=0{sem}&rollNo={regino}" # its not working
     )
-    return requests.get(api_link).text
+    return_list[0]= requests.get(api_link).text
+    return_list[1] = 1
 
 # parsing response.text 
 def parse_into_pandas(result_text: str):
@@ -187,29 +193,37 @@ def parse_into_pandas(result_text: str):
     # Storing Marksheet as as DataFrame to process it by pandas framework.
     marksheet_df = pd.DataFrame(Marksheet)
     # Combining all to make a virtual spreadsheet.
-    main = pd.concat([studentinfo_df, null_df, marksheet_df.T])
+    main = pd.concat([studentinfo_df, null_df, marksheet_df.T],ignore_index=True)
+    main.reindex()
     # returning the final spreadsheet.
     return main
 
-
-def save_result_as_xlsx(rollno, session, result: pd.DataFrame, to_save_loc):
+# saves result as excel
+def save_result_as_xlsx(rollno, session, result: pd.DataFrame,screen):
     """
     This function saves the result in permanent memory as a files as xlsx(excel X)
     input: to_save_loc=<pathToDir>,rollno=[[F/W]<12-digs>],session=[[w/s]<year>],result=[<dfOfResult].
     """
     fileName = f"{rollno}-{session}.xlsx"
     try:  # if file saved without an error
-        open(f"{to_save_loc}{fileName}", "x")
-        result.to_excel(f"{to_save_loc}{fileName}")
-        print(f" File successfully saved to {to_save_loc}{fileName}") # need to replace
+        open(f"{fileName}", "x")
+        result.to_excel(f"{fileName}")
+        screen.clear()
+        scrPrint(screen,homepage_logo,0,0)
+        scrPrint(screen,f"The result sucessfully saved to {fileName}",10,13,cu.color_pair(4))
+        time.sleep(8)
     except Exception as e:  # Error during save
         if type(e) == FileExistsError:  # File found
-            print(
-                f"File {to_save_loc}{fileName} found to be exists. Over writing the file..."
-            ) # need to replace
-            result.to_excel(f"{to_save_loc}{fileName}")
+            screen.clear()
+            scrPrint(screen,homepage_logo,0,0)
+            scrPrint(screen,f"Over Writing the file...{fileName}",10,13,cu.color_pair(4))
+            result.to_excel(f"{fileName}")
+            time.sleep(8)
         else:  # anything else
-            print(f"There is an error [{e}]") # need to replace
+            screen.clear()
+            scrPrint(screen,homepage_logo,0,0)
+            scrPrint(screen,f"An error found while saving the file: {e}",10,18,cu.color_pair(7))
+            time.sleep(8)
 
 
 while is_runtime:  # program starts
@@ -228,6 +242,9 @@ while is_runtime:  # program starts
     cu.init_pair(3,cu.COLOR_CYAN,cu.COLOR_BLACK)
     cu.init_pair(4,cu.COLOR_GREEN,cu.COLOR_BLACK)
     cu.init_pair(5,cu.COLOR_YELLOW,cu.COLOR_BLACK)
+    cu.init_pair(6,cu.COLOR_MAGENTA,cu.COLOR_BLACK)
+    cu.init_pair(7,cu.COLOR_RED,cu.COLOR_BLACK)
+    cu.init_pair(8,cu.COLOR_WHITE,cu.COLOR_RED)
     ## add elements to screen.
     screen.addstr(
         0,
@@ -270,31 +287,212 @@ while is_runtime:  # program starts
     screen.clear() # clearing everything
     scrPrint(screen,homepage_logo,0,0)
     time.sleep(1)
-    server_status_response = [0,0]
-
+    server_status_response = [0,0] # used to collect server response by any thread
     checking_server = threading.Thread(None,server_status,"Checking_S_status",[main_result_web,server_status_response])
-    checking_server.start()
-    while server_status_response[1] == 0:
-        checking_server_anima(screen,10,24,cu.color_pair(4))
+    checking_server.start() # server status check is in a different thread from animation
+    while server_status_response[1] == 0: # for animation
+        anima(screen,"Checking Server status",10,24,cu.color_pair(4))
     if server_status_response[0] == 0:
         
         ##                              ->  Selecting server mode  <-
 
-        screen.clear()
+        screen.clear() # clear everything
         scrPrint(screen,homepage_logo,0,0)
-        mode_select = screen.subwin(10,60,8,6)
+        mode_select = screen.subwin(10,60,8,6) # mode select screen
         mode_select.keypad(True)
         mode_select.border()
-        screen.refresh()
+        screen.refresh() # must do to make the screen appear
         scrPrint(mode_select,"MODE SELECT",1,24,cu.color_pair(3))
         scrPrint(mode_select,"[1] NormalFetch mode",6,3,cu.color_pair(5))
         scrPrint(mode_select,"[2] ForceRetrever mode",6,34,cu.color_pair(5))
-        mode_select.refresh()
-        mode_key = mode_select.getkey()
+        scrPrint(mode_select,"[Any Key] Exit",8,23,cu.color_pair(5))
+        mode_select.refresh() # show options
+        mode_key = mode_select.getkey()  # wait for a response...
         if mode_key=="1":
-            pass # normal fetch mode
+
+            #                           ->    Normal Fetch mode   <-
+
+            #    Fetching Details
+            screen.clear()
+            screen.refresh()
+            student_info = screen.subwin(15,50,6,10)
+            student_info.keypad(True)
+            student_info.border()
+            scrPrint(student_info,"STUDENT INFO",1,19,cu.color_pair(6))
+            scrPrint(student_info,"REGI NO([F/L]<12-dig>): ",5,2,cu.color_pair(7))
+            regi_entry = student_info.getstr()
+            student_info.border()
+            scrPrint(student_info,"SEMESTER(1-6): ",7,2,cu.color_pair(7))
+            sem_entry = student_info.getstr()
+            student_info.border()
+            scrPrint(student_info,"SESSION([w/s]<year>): ",9,2,cu.color_pair(7))
+            session_entry = student_info.getstr()
+            screen.clear()
+            scrPrint(screen,homepage_logo,0,0)
+            retreve_return_list = [0,0]
+            retreve_info = threading.Thread(None,retreve,"retreve",[remove_b(str(regi_entry)),remove_b(str(sem_entry)),remove_b(str(session_entry)),retreve_return_list])
+            retreve_info.start()
+            while retreve_return_list[1] == 0:
+               anima(screen,"Fetching Details",10,26,cu.color_pair(4))
+            #   Saving details
+            screen.clear()
+            scrPrint(screen,homepage_logo,0,0)
+            scrPrint(screen,"Saving Details...",10,22,cu.color_pair(4))
+            if len(retreve_return_list[0]) > 50:
+                result_df = parse_into_pandas(str(retreve_return_list[0]))
+                save_result_as_xlsx(remove_b(regi_entry),remove_b(session_entry),result_df,screen)
+            else:
+                screen.clear()
+                scrPrint(screen,homepage_logo,0,0)
+                scrPrint(screen,f"There is a problem: {retreve_return_list[0]}",10,15)
+                time.sleep(3)
+
+        elif mode_key == "2":
+
+            #                   ->   Force Retrever mode  <-
+
+            # getting every important details
+            screen.clear()
+            screen.refresh()
+            student_info = screen.subwin(15,50,6,10)
+            student_info.keypad(True)
+            student_info.border()
+            scrPrint(student_info,"STUDENT INFO",1,19,cu.color_pair(6))
+            scrPrint(student_info,"REGI NO([F/L]<12-dig>): ",5,2,cu.color_pair(7))
+            regi_entry = student_info.getstr()
+            student_info.border()
+            scrPrint(student_info,"SEMESTER(1-6): ",7,2,cu.color_pair(7))
+            sem_entry = student_info.getstr()
+            student_info.border()
+            scrPrint(student_info,"SESSION([w/s]<year>): ",9,2,cu.color_pair(7))
+            session_entry = student_info.getstr()
+            student_info.border()
+            scrPrint(student_info,"No of Threads:",11,2,cu.color_pair(7))
+            threads_entry = student_info.getstr()
+            threads_entry = int(remove_b(str(threads_entry)))
+            screen.clear()
+            scrPrint(screen,homepage_logo,0,0)
+            scrPrint(screen,"Initializing Retrever Engine...",10,22,cu.color_pair(6))
+            retreve_return_list = [0,0] # for collecting output
+            time.sleep(2)
+            # force retrever
+            while retreve_return_list[1] != 1: # till output is not collected...
+                thread_list = []
+                # initializing every thread
+                screen.clear()
+                scrPrint(screen,homepage_logo,0,0)
+                scrPrint(screen,"Preparing threads...",10,26,cu.color_pair(3))
+                scrPrint(screen,"Please Don't Turn your computer or this program off...",13,11,cu.color_pair(8))
+                time.sleep(1)
+                for i in range(threads_entry):
+                    screen.clear()
+                    scrPrint(screen,homepage_logo,0,0)
+                    scrPrint(screen,"Please Don't Turn your computer or this program off...",13,11,cu.color_pair(8))
+                    thread_list.append(threading.Thread(None,retreve,f"retreve{i}",[remove_b(str(regi_entry)),remove_b(str(sem_entry)),remove_b(str(session_entry)),retreve_return_list]))
+                    time.sleep(4/threads_entry)
+                screen.clear()
+                scrPrint(screen,homepage_logo,0,0)
+                scrPrint(screen,"Starting Threads...",10,26,cu.color_pair(4))
+                scrPrint(screen,"Please Don't Turn your computer or this program off...",13,11,cu.color_pair(8))
+                time.sleep(1)
+                # starting every thread
+                for i in thread_list:
+                    i.start()
+                screen.clear()
+                scrPrint(screen,homepage_logo,0,0)
+                scrPrint(screen,"Waiting For Response...",10,25,cu.color_pair(3))
+                scrPrint(screen,"Please Don't Turn your computer or this program off...",13,11,cu.color_pair(8))
+                time.sleep(7)
+                screen.clear()
+                scrPrint(screen,homepage_logo,0,0)
+                if retreve_return_list[0] == 0:
+                    scrPrint(screen,"First Thread Batch Failed",10,24,cu.color_pair(4))
+                    time.sleep(1.5)
+            #   Saving details
+            screen.clear()
+            scrPrint(screen,homepage_logo,0,0)
+            scrPrint(screen,"Saving Details...",10,22,cu.color_pair(4))
+            if len(retreve_return_list[0]) > 50:
+                result_df = parse_into_pandas(str(retreve_return_list[0]))
+                save_result_as_xlsx(remove_b(regi_entry),remove_b(session_entry),result_df,screen)
+            else:
+                screen.clear()
+                scrPrint(screen,homepage_logo,0,0)
+                scrPrint(screen,f"There is a problem: {retreve_return_list[0]}",10,15)
+                time.sleep(3)
         else:
-            pass # force retrever mode
+            is_runtime = False
+            
     else:
-        pass # force retrever mode
-    is_runtime = False
+        #                   ->   Force Retrever mode  <-
+
+        # getting every important details
+        screen.clear()
+        screen.refresh()
+        student_info = screen.subwin(15,50,6,10)
+        student_info.keypad(True)
+        student_info.border()
+        scrPrint(student_info,"STUDENT INFO",1,19,cu.color_pair(6))
+        scrPrint(student_info,"REGI NO([F/L]<12-dig>): ",5,2,cu.color_pair(7))
+        regi_entry = student_info.getstr()
+        student_info.border()
+        scrPrint(student_info,"SEMESTER(1-6): ",7,2,cu.color_pair(7))
+        sem_entry = student_info.getstr()
+        student_info.border()
+        scrPrint(student_info,"SESSION([w/s]<year>): ",9,2,cu.color_pair(7))
+        session_entry = student_info.getstr()
+        student_info.border()
+        scrPrint(student_info,"No of Threads:",11,2,cu.color_pair(7))
+        threads_entry = student_info.getstr()
+        threads_entry = int(remove_b(str(threads_entry)))
+        screen.clear()
+        scrPrint(screen,homepage_logo,0,0)
+        scrPrint(screen,"Initializing Retrever Engine...",10,22,cu.color_pair(6))
+        retreve_return_list = [0,0] # for collecting output
+        time.sleep(2)
+        # force retrever
+        while retreve_return_list[1] != 1: # till output is not collected...
+            thread_list = []
+            # initializing every thread
+            screen.clear()
+            scrPrint(screen,homepage_logo,0,0)
+            scrPrint(screen,"Preparing threads...",10,26,cu.color_pair(3))
+            scrPrint(screen,"Please Don't Turn your computer or this program off...",13,11,cu.color_pair(8))
+            time.sleep(1)
+            for i in range(threads_entry):
+                screen.clear()
+                scrPrint(screen,homepage_logo,0,0)
+                scrPrint(screen,"Please Don't Turn your computer or this program off...",13,11,cu.color_pair(8))
+                thread_list.append(threading.Thread(None,retreve,f"retreve{i}",[remove_b(str(regi_entry)),remove_b(str(sem_entry)),remove_b(str(session_entry)),retreve_return_list]))
+                time.sleep(4/threads_entry)
+            screen.clear()
+            scrPrint(screen,homepage_logo,0,0)
+            scrPrint(screen,"Starting Threads...",10,26,cu.color_pair(4))
+            scrPrint(screen,"Please Don't Turn your computer or this program off...",13,11,cu.color_pair(8))
+            time.sleep(1)
+            # starting every thread
+            for i in thread_list:
+                i.start()
+            screen.clear()
+            scrPrint(screen,homepage_logo,0,0)
+            scrPrint(screen,"Waiting For Response...",10,25,cu.color_pair(3))
+            scrPrint(screen,"Please Don't Turn your computer or this program off...",13,11,cu.color_pair(8))
+            time.sleep(7)
+            screen.clear()
+            scrPrint(screen,homepage_logo,0,0)
+            if retreve_return_list[0] == 0:
+                scrPrint(screen,"First Thread Batch Failed",10,24,cu.color_pair(4))
+                time.sleep(1.5)
+        #   Saving details
+        screen.clear()
+        scrPrint(screen,homepage_logo,0,0)
+        scrPrint(screen,"Saving Details...",10,22,cu.color_pair(4))
+        if len(retreve_return_list[0]) > 50:
+            result_df = parse_into_pandas(str(retreve_return_list[0]))
+            save_result_as_xlsx(remove_b(regi_entry),remove_b(session_entry),result_df,screen)
+        else:
+            screen.clear()
+            scrPrint(screen,homepage_logo,0,0)
+            scrPrint(screen,f"There is a problem: {retreve_return_list[0]}",10,15)
+            time.sleep(3)
+    

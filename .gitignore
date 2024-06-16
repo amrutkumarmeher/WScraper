@@ -8,6 +8,7 @@ __pycache__/
 
 # Distribution / packaging
 .Python
+rough.py
 build/
 develop-eggs/
 dist/
@@ -38,6 +39,7 @@ pip-delete-this-directory.txt
 
 # Unit test / coverage reports
 htmlcov/
+rough*.py
 .tox/
 .nox/
 .coverage
@@ -156,6 +158,9 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+
+# vs code
+*.vscode
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
