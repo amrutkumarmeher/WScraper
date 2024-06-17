@@ -494,6 +494,8 @@ while is_runtime:  # program starts
             screen.clear()
             scrPrint(screen,homepage_logo,0,0)
             scrPrint(screen,f"There is a problem: {retreve_return_list[0]}",10,15)
-            screen.clear()
             time.sleep(3)
+    screen.clear()
+    screen.refresh()
+    del screen
     
