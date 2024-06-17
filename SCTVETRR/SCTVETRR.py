@@ -9,11 +9,11 @@ import threading
 main_result_web = "https://sctevtodisha.nic.in/en/"
 is_runtime = True
 homepage_logo = r"""
-                  ╭━━━┳━━━┳━━━━┳╮╱╱╭┳━━━┳━━━━╮╭━━━┳━━━╮
-                  ┃╭━╮┃╭━╮┃╭╮╭╮┃╰╮╭╯┃╭━━┫╭╮╭╮┃┃╭━╮┃╭━╮┃
-                  ┃╰━━┫┃╱╰┻╯┃┃╰┻╮┃┃╭┫╰━━╋╯┃┃╰╯┃╰━╯┃╰━╯┃
-                  ╰━━╮┃┃╱╭╮╱┃┃╱╱┃╰╯┃┃╭━━╯╱┃┃╱╱┃╭╮╭┫╭╮╭╯
-                  ┃╰━╯┃╰━╯┃╱┃┃╱╱╰╮╭╯┃╰━━╮╱┃┃╱╱┃┃┃╰┫┃┃╰╮
+                  ╭━━━┳━━━┳━━━━┳╮╱╱╭┳━━━┳━━━━╮╭━━━┳━━━╮   
+                  ┃╭━╮┃╭━╮┃╭╮╭╮┃╰╮╭╯┃╭━━┫╭╮╭╮┃┃╭━╮┃╭━╮┃   Made By
+                  ┃╰━━┫┃╱╰┻╯┃┃╰┻╮┃┃╭┫╰━━╋╯┃┃╰╯┃╰━╯┃╰━╯┃   Amrut Kumar Meher
+                  ╰━━╮┃┃╱╭╮╱┃┃╱╱┃╰╯┃┃╭━━╯╱┃┃╱╱┃╭╮╭┫╭╮╭╯   CSE  batch- 2023-26
+                  ┃╰━╯┃╰━╯┃╱┃┃╱╱╰╮╭╯┃╰━━╮╱┃┃╱╱┃┃┃╰┫┃┃╰╮   GP BARGARH
                   ╰━━━┻━━━╯╱╰╯╱╱╱╰╯╱╰━━━╯╱╰╯╱╱╰╯╰━┻╯╰━╯"""
 server_status_good = False
 
@@ -494,5 +494,6 @@ while is_runtime:  # program starts
             screen.clear()
             scrPrint(screen,homepage_logo,0,0)
             scrPrint(screen,f"There is a problem: {retreve_return_list[0]}",10,15)
+            screen.clear()
             time.sleep(3)
     
